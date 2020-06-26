@@ -49,22 +49,29 @@ class SpeechRecon(object):
     def __init__(self, VAD_buffer=10, record=False):
         # self.kaldi = KaldiInfer()
         self.record = record
+
+        # Kaldi paths
         model_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/chain/tdnn_7b/final.mdl"
         graph_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst" 
         symbol_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/data/lang_chain/words.txt"
         online_conf="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online_16k.conf"
-        self.precise_engine = PreciseEngine('/home/rbccps2080ti/.virtualenvs/precise/bin/precise-engine', '/home/rbccps2080ti/projects/speech/wake-word-benchmark/audio/computer/hey-computer.net')
+
+        # Precise Wake word detection paths
+        precise_engine = PreciseEngine('/home/rbccps2080ti/.virtualenvs/precise/bin/precise-engine', '/home/rbccps2080ti/projects/speech/wake-word-benchmark/audio/computer/hey-computer.net')
         # self.precise_engine = PreciseEngine('/home/rbccps2080ti/.virtualenvs/precise/bin/precise-engine', '/home/rbccps2080ti/projects/speech/wake-word-benchmark/audio/Asha-new/hey-asha.net')
+
         self.sample_rate = 16000
         self.chunk_size = 2048
         self.pa = pyaudio.PyAudio()
-        print(self.pa.get_sample_size(pyaudio.paInt16))
+        # print(self.pa.get_sample_size(pyaudio.paInt16))
         self.stream = self.pa.open(self.sample_rate, 1, pyaudio.paInt16, True, frames_per_buffer=self.chunk_size)
+        # self.wakeword_detector = PreciseRunner(precise_engine, on_activation=self.precise_activation, trigger_level=0)
         self.vad_frame_duration = 10
         self.vad = webrtcvad.Vad(2)
         self.current_activity_states = [False] * VAD_buffer
         self.current_target_state = False # statement and not command to sophia
 
+        # Kalsi Init options
         feat_opts = OnlineNnetFeaturePipelineConfig()
         endpoint_opts = OnlineEndpointConfig()
         po = ParseOptions("")
@@ -123,8 +130,11 @@ class SpeechRecon(object):
         assert type(state) == bool
         self.current_target_state = state
 
+    def precise_activation(self):
+        self.update_target(True)
+
     def precise(self, stream_data):
-        PreciseRunner(self.engine, stream=self.stream, on_prediction=self.notify_log, on_activation=activate_notify, trigger_level=0).start()
+        self.wakeword_detector.start()
         ## TODO update event wait
         # def listen(stream):
         #     if getattr(stream.read, '__func__', None) is pyaudio.Stream.read:
@@ -134,19 +144,19 @@ class SpeechRecon(object):
 
         # self.engine.start()
 
-    def speechrec(self, chunk, last_chunk=True):
-        feature_pipeline = OnlineNnetFeaturePipeline(self.kaldi.feat_info)
-        self.kaldi.asr.set_input_pipeline(feature_pipeline)
-        self.kaldi.asr.init_decoding()
-        output = self.kaldi.infer_chunk(chunk, feature_pipeline, last_chunk)
-        # output = self.kaldi.infer2(chunk)
-        ## TODO handle closing
+    # def speechrec(self, chunk, last_chunk=True):
+    #     feature_pipeline = OnlineNnetFeaturePipeline(self.kaldi.feat_info)
+    #     self.kaldi.asr.set_input_pipeline(feature_pipeline)
+    #     self.kaldi.asr.init_decoding()
+    #     output = self.kaldi.infer_chunk(chunk, feature_pipeline, last_chunk)
+    #     # output = self.kaldi.infer2(chunk)
+    #     ## TODO handle closing
 
 
-        return output
+    #     return output
 
-    # def SIL(self, stream_data):
-    #     pass
+    # # def SIL(self, stream_data):
+    # #     pass
 
     def init_decoder(self, kaldidecoder=True):
         # TODO remove when deepspeech is implemented
@@ -183,43 +193,44 @@ class SpeechRecon(object):
             return out['text']
 
 
-    def run(self):
-        activity = False
-        prev_chunks_activity = [False, False, False, False, False, False, False, False, False, False]
-        dat = []
-        while True:
-            chunk = self.listen()
+    # def run(self):
+    #     activity = False
+    #     prev_chunks_activity = [False, False, False, False, False, False, False, False, False, False]
+    #     dat = []
+    #     while True:
+    #         chunk = self.listen()
             
-            chunk_array = np.asarray(np.fromstring(chunk, dtype=np.int16))
+    #         chunk_array = np.asarray(np.fromstring(chunk, dtype=np.int16))
             
-            activity = self.VAD(chunk)
-            # print(activity)
+    #         activity = self.VAD(chunk)
+    #         # print(activity)
             
-            # check if last chunk or not and decode
-            print(prev_chunks_activity)
-            if activity and any(prev_chunks_activity):
-                dat.append(chunk)
-                decoded = self.speechrec(chunk_array, False)
-                print(decoded)
-            elif not activity and any(prev_chunks_activity):
-                decoded = self.speechrec(chunk_array, True)
-                datetimeObj = datetime.now()
-                wf = wave.open(str(datetimeObj.day)+"-"+str(datetimeObj.month)+"-"+str(datetimeObj.year)+"_"+str(datetimeObj.hour)+"-"+str(datetimeObj.minute)+"-"+str(datetimeObj.second)+".wav", 'wb')
-                wf.setnchannels(1)
-                wf.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
-                wf.setframerate(16000)
-                wf.writeframes(b''.join(dat))
-                wf.close()
-                dat = []
+    #         # check if last chunk or not and decode
+    #         print(prev_chunks_activity)
+    #         if activity and any(prev_chunks_activity):
+    #             dat.append(chunk)
+    #             decoded = self.speechrec(chunk_array, False)
+    #             print(decoded)
+    #         elif not activity and any(prev_chunks_activity):
+    #             decoded = self.speechrec(chunk_array, True)
+    #             datetimeObj = datetime.now()
+    #             wf = wave.open(str(datetimeObj.day)+"-"+str(datetimeObj.month)+"-"+str(datetimeObj.year)+"_"+str(datetimeObj.hour)+"-"+str(datetimeObj.minute)+"-"+str(datetimeObj.second)+".wav", 'wb')
+    #             wf.setnchannels(1)
+    #             wf.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
+    #             wf.setframerate(16000)
+    #             wf.writeframes(b''.join(dat))
+    #             wf.close()
+    #             dat = []
 
-            prev_chunks_activity.append(activity)
-            prev_chunks_activity = prev_chunks_activity[1:]
-            # print(decoded)
-            # prev_chunk_activity = activity
+    #         prev_chunks_activity.append(activity)
+    #         prev_chunks_activity = prev_chunks_activity[1:]
+    #         # print(decoded)
+    #         # prev_chunk_activity = activity
 
 
     def run2(self):
         while True:
+            # self.wakeword_detector.start()
             chunk = self.listen()
             if self.record:
                 print("LOG :: Recording audio clips in $PWD/recordings/")
@@ -251,7 +262,14 @@ class SpeechRecon(object):
                     self.update_activity(activity=activity)
                     self.decode_chunk(chunk_array, kaldidecoder=True, last_chunk=True)
                     final_output = self.destroy_decoder(kaldidecoder=True)
+                    ## TODO Integrate precise
+                    # self.wakeword_detector.stop()
+                    # if self.current_target_state:
+                    #     print("Command: ", final_output)
+                    # else:
+                    #     print("Statement: ", final_output)
                     print(final_output)
+                    self.update_target(False)
                     if self.record:
                         wf.writeframes(b''.join(total_data_stream))
                         wf.close()
@@ -263,6 +281,6 @@ class SpeechRecon(object):
 
 
 if __name__ == '__main__':
-    speech_pipeline = SpeechRecon(record=True)
+    speech_pipeline = SpeechRecon(record=False)
     speech_pipeline.run2()
 
