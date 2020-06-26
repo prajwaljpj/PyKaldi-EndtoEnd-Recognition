@@ -21,7 +21,7 @@ class KaldiInfer(object):
         model_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/chain/tdnn_7b/final.mdl", 
         graph_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst", 
         symbol_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/data/lang_chain/words.txt", 
-        online_conf="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online_16k.conf", 
+        online_conf="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf", 
         chunk_size=2048):
 
         self.chunk_size = chunk_size
