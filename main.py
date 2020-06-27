@@ -36,10 +36,21 @@ from kaldi.matrix import SubVector, Vector
 class SpeechRecon(object):
 
     def __init__(self, VAD_buffer=5, record=False):
+        ''' Complete End to end Speech recognition with pykaldi(speech recognition), Webrtcvad(Voice activity Detector), and wakeword detector(Mycroft Precise)
+        Use Case:
+        >>> speech_pipeline = SpeechRecon(record=False)
+        >>> speech_pipeline.run()
+
+        Record option True will record audio
+        VAD_buffer handles chunk activity recognition sensitivity (currently __ seconds)
+        TODO
+        VAD_sensitivity handles how many True values vad recognises (currently __ seconds)
+        '''
         # self.kaldi = KaldiInfer()
+        # Record function to init recording currently saved in recordings/
         self.record = record
 
-        # Kaldi paths
+        # Kaldi paths (currently hardcoded) 
         model_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/final.mdl"
         graph_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst" 
         symbol_path="/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/data/lang_chain/words.txt"
@@ -52,15 +63,19 @@ class SpeechRecon(object):
         self.sample_rate = 8000
         self.chunk_size = 2048
         self.pa = pyaudio.PyAudio()
+        self.precise_pa = pyaudio.PyAudio()
         # print(self.pa.get_sample_size(pyaudio.paInt16))
+        # For Kaldi the sampling rate should be 8kHz
         self.stream = self.pa.open(self.sample_rate, 1, pyaudio.paInt16, True, frames_per_buffer=self.chunk_size)
-        self.wakeword_detector = PreciseRunner(precise_engine, stream=self.stream, on_activation=self.precise_activation, trigger_level=0)
+        # For precise The sampling rate should be 16kHz
+        self.precise_stream = self.precise_pa.open(16000, 1, pyaudio.paInt16, True, frames_per_buffer=self.chunk_size)
+        self.wakeword_detector = PreciseRunner(precise_engine, sensitivity=0.5, stream=self.precise_stream, on_activation=self.precise_activation, trigger_level=2)
         self.vad_frame_duration = 10
         self.vad = webrtcvad.Vad(2)
         self.current_activity_states = [False] * VAD_buffer
         self.current_target_state = False # statement and not command to sophia
 
-        # Kalsi Init options
+        # Kaldi Init options
         feat_opts = OnlineNnetFeaturePipelineConfig()
         endpoint_opts = OnlineEndpointConfig()
         po = ParseOptions("")
@@ -90,7 +105,6 @@ class SpeechRecon(object):
 
     def listen(self):
         return self.stream.read(self.chunk_size)
-        
 
     def VAD(self, stream_data, frame_duration=10):
         mini_chunks_size = int(self.sample_rate * frame_duration / 1000) * 2 #320 and for 8k it is 160
@@ -119,6 +133,7 @@ class SpeechRecon(object):
         self.current_target_state = state
 
     def precise_activation(self):
+        print("Precise Activation Occured")
         self.update_target(True)
 
     def init_decoder(self, kaldidecoder=True):
@@ -156,8 +171,10 @@ class SpeechRecon(object):
             return out['text']
 
     def run(self):
+        self.wakeword_detector.start()
         while True:
-            self.wakeword_detector.start()
+            # self.wakeword_detector.start()
+            self.wakeword_detector.play()
             chunk = self.listen()
             if self.record:
                 # print("LOG :: Recording audio clips in $PWD/recordings/")
@@ -174,41 +191,42 @@ class SpeechRecon(object):
             chunk_array = np.asarray(np.fromstring(chunk, dtype=np.int16))
             activity = self.VAD(chunk)
             self.update_activity(activity=activity)
-            print(self.current_activity_states)
+            # print(self.current_activity_states)
             # print("outer While")
-            print("Speech Activity: ", any(self.current_activity_states))
-            while self.current_activity_states.count(True) > 3: # Tune this as per your requirements
+            # print("Speech Activity: ", any(self.current_activity_states))
+            while self.current_activity_states.count(True) > 2: # Tune this as per your requirements
                 # print("inner while loop")
                 chunk = self.listen()
                 if self.record:
                     total_data_stream.append(chunk)
                 chunk_array = np.asarray(np.fromstring(chunk, dtype=np.int16))
                 activity = self.VAD(chunk)
-                print(self.current_activity_states)
+                # print(self.current_activity_states)
                 if self.current_activity_states[0] and not any(self.current_activity_states[3:]): # Tune this as per your requirements
                     # Last frame to decode
                     self.update_activity(activity=activity)
                     self.decode_chunk(chunk_array, kaldidecoder=True, last_chunk=True)
                     final_output = self.destroy_decoder(kaldidecoder=True)
                     ## TODO Integrate precise
-                    self.wakeword_detector.stop()
+                    # self.wakeword_detector.pause()
+                    print(self.current_target_state)
                     if self.current_target_state:
                         print("Command: ", final_output)
+                        self.update_target(False)
                     else:
                         print("Statement: ", final_output)
                     # print("Output : " + final_output)
-                    self.update_target(False)
                     if self.record:
                         wf.writeframes(b''.join(total_data_stream))
                         wf.close()
-                        print("LOG:: Recorded at: ", filename)
+                        # print("LOG:: Recorded at: ", filename)
                     break
                 partial_output = self.decode_chunk(chunk_array, kaldidecoder=True, last_chunk=False)
-                print("Partial output: " + partial_output)
+                # print("Partial output: " + partial_output)
 
 
 
 if __name__ == '__main__':
-    speech_pipeline = SpeechRecon(record=True)
+    speech_pipeline = SpeechRecon(record=False)
     speech_pipeline.run()
 
