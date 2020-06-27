@@ -1,0 +1,7 @@
+#+TITLE: End to End Speech Recognition with Pykaldi, webrtcvad, precise
+
+* Introduction
+* Installation
+* Results
+* Authors
+- [[mailto:prajwaljpj@gmail.com][Prajwal Rao]]
