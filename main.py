@@ -149,7 +149,7 @@ class SpeechRecon(object):
 
     def init_decoder(self, kaldidecoder=False):
         # TODO remove when deepspeech is implemented
-        assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
+        # assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
         if kaldidecoder:
             self.feature_pipeline = OnlineNnetFeaturePipeline(self.feat_info)
             self.asr.set_input_pipeline(self.feature_pipeline)
@@ -160,7 +160,7 @@ class SpeechRecon(object):
 
     def decode_chunk(self, chunk, kaldidecoder=False, last_chunk=False):
         # TODO remove when deepspeech is implemented
-        assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
+        # assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
         if kaldidecoder:
             chunk = SubVector(chunk)
             if chunk.is_zero():
@@ -179,7 +179,7 @@ class SpeechRecon(object):
             return out
 
     def destroy_decoder(self, kaldidecoder=False):
-        assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
+        # assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
         if kaldidecoder:
             # self.feature_pipeline.input_finished()
             self.asr.finalize_decoding()

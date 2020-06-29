@@ -1,7 +1,19 @@
-#+TITLE: End to End Speech Recognition with Pykaldi, webrtcvad, precise
+#+TITLE: End to End Speech Recognition with Pykaldi/Deepspeech, webrtcvad, precise
 
 * Introduction
+This repository is an end to end speech recognition toolkit which uses open source libraries such as [[https://github.com/pykaldi/pykaldi][PyKaldi]], [[https://github.com/mozilla/DeepSpeech][Deepspeech]] , [[https://github.com/wiseman/py-webrtcvad][WebrtcVAD]], [[https://github.com/MycroftAI/mycroft-precise][mycroft precise]]
 * Installation
+- Install [[https://docs.anaconda.com/anaconda/install/][Anaconda]]
+- Install PyKaldi
+  #+BEGIN_SRC sh
+    conda install -c pykaldi pykaldi
+  #+END_SRC
+- Install Deepspeech
+  #+BEGIN_SRC sh
+pip3 install deepspeech
+  #+END_SRC
+- Install WebrtcVAD
+- Install mycroft-precise
 * Results
 * Authors
 - [[mailto:prajwaljpj@gmail.com][Prajwal Rao]]
