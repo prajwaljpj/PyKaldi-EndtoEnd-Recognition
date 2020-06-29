@@ -16,6 +16,9 @@ import pylab
 import time
 from datetime import datetime
 
+# Deepspeech imports
+import deepspeech
+
 #kaldi imports
 from kaldi.asr import NnetLatticeFasterOnlineRecognizer
 from kaldi.decoder import LatticeFasterDecoderOptions
@@ -74,6 +77,14 @@ class SpeechRecon(object):
         self.vad = webrtcvad.Vad(2)
         self.current_activity_states = [False] * VAD_buffer
         self.current_target_state = False # statement and not command to sophia
+
+        # Deepspeech recogniser Init Options
+        self.ds_model = deepspeech.Model("/home/rbccps2080ti/projects/speech/deepspeech/deepspeech-0.7.0-models.pbmm")
+        # self.ds_model.setBeamWidth(500)
+        # self.ds_model.enableDecoderWithLM("/home/rbccps2080ti/projects/speech/deepspeech/deepspeech-0.6.1-models/lm.binary",
+                # "/home/rbccps2080ti/projects/speech/deepspeech/deepspeech-0.6.1-models/trie", 
+                # 0.75, 
+                # 1.85)
 
         # Kaldi Init options
         feat_opts = OnlineNnetFeaturePipelineConfig()
@@ -136,7 +147,7 @@ class SpeechRecon(object):
         print("Precise Activation Occured")
         self.update_target(True)
 
-    def init_decoder(self, kaldidecoder=True):
+    def init_decoder(self, kaldidecoder=False):
         # TODO remove when deepspeech is implemented
         assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
         if kaldidecoder:
@@ -144,9 +155,10 @@ class SpeechRecon(object):
             self.asr.set_input_pipeline(self.feature_pipeline)
             self.asr.init_decoding()
         else:
-            print("deepspeech not yet implemented")
+            self.context = self.ds_model.createStream()
+            # print("deepspeech not yet implemented")
 
-    def decode_chunk(self, chunk, kaldidecoder=True, last_chunk=False):
+    def decode_chunk(self, chunk, kaldidecoder=False, last_chunk=False):
         # TODO remove when deepspeech is implemented
         assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
         if kaldidecoder:
@@ -161,14 +173,21 @@ class SpeechRecon(object):
                 out = self.asr.get_partial_output()
                 return out["text"]
             return ""
+        else:
+            self.ds_model.feedAudioContent(self.context, chunk)
+            out = self.ds_model.intermediateDecode(self.context)
+            return out
 
-    def destroy_decoder(self, kaldidecoder=True):
+    def destroy_decoder(self, kaldidecoder=False):
         assert kaldidecoder == True, "Deepspeech decoder not yet implemented"
         if kaldidecoder:
             # self.feature_pipeline.input_finished()
             self.asr.finalize_decoding()
             out = self.asr.get_output()
             return out['text']
+        else:
+            out = self.ds_model.finishStream(self.context)
+            return out
 
     def run(self):
         self.wakeword_detector.start()
