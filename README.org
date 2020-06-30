@@ -4,71 +4,97 @@
 This repository is an end to end speech recognition toolkit which uses open source libraries such as [[https://github.com/pykaldi/pykaldi][PyKaldi]], [[https://github.com/mozilla/DeepSpeech][Deepspeech]] , [[https://github.com/wiseman/py-webrtcvad][WebrtcVAD]], [[https://github.com/MycroftAI/mycroft-precise][mycroft precise]]
 * Installation
 - Install [[https://docs.anaconda.com/anaconda/install/][Anaconda]]
-  #+BEGIN_SRC sh
-
-    conda create --name speech python=3.5
-    conda activate speech
+  #+BEGIN_SRC shell
+        conda create --name speech python=3.6
+        conda activate speech
   #+END_SRC
 - Install PyKaldi
-  #+BEGIN_SRC sh
-    conda install -c pykaldi pykaldi
+  #+BEGIN_SRC shell
+        conda install -c pykaldi pykaldi
   #+END_SRC
 - Install Deepspeech
-  #+BEGIN_SRC sh
-    pip3 install deepspeech # Install deepspeech-gpu if you want CUDA support
-    # Download the model
-    curl -LO https://github.com/mozilla/DeepSpeech/releases/download/v0.7.4/audio-0.7.4.tar.gz
-    tar xvf audio-0.7.4.tar.gz
+  #+BEGIN_SRC shell
+        pip3 install deepspeech # Install deepspeech-gpu if you want CUDA support
+        # Download the model
+        curl -LO https://github.com/mozilla/DeepSpeech/releases/download/v0.7.4/audio-0.7.4.tar.gz
+        tar xvf audio-0.7.4.tar.gz
   #+END_SRC
 - Install WebrtcVAD
-    #+BEGIN_SRC sh
-    pip install webrtcvad
+    #+BEGIN_SRC shell
+        pip install webrtcvad
     #+END_SRC
 - Install mycroft-precise
-    #+BEGIN_SRC sh
-    pip install webrtcvad
+    #+BEGIN_SRC shell
+        ARCH=x86_64
+        wget https://github.com/MycroftAI/precise-data/raw/dist/$ARCH/precise-engine.tar.gz
+        tar xvf precise-engine.tar.gz
+        sudo apt-get install portaudio19-dev
+        pip install pyaudio
+        pip install precise-runner
     #+END_SRC
 * Steps
+** Download models
+- Download Kaldi model from [[https://kaldi-asr.org/models/1/0001_aspire_chain_model_with_hclg.tar.bz2][here]]
+- Link all the hard coded paths in main.py (you might have to create online.conf, ivector_extractor.conf)
+- Precise models have to be generated (data can be obtained [[https://github.com/Picovoice/wake-word-benchmark][here]])
 ** Train the WakeWord Detector using the following [[https://github.com/MycroftAI/mycroft-precise/wiki/Training-your-own-wake-word][steps]]:
 - Activate your anaconda environment
 - Record your audio samples using
-    #+BEGIN_SRC sh
-    precise-collect
+    #+BEGIN_SRC shell
+        precise-collect
     #+END_SRC
 - If you are recording by other means, convert the samples to 16kHz 1 channel 16-bit PCM wav audio files
-  #+BEGIN_SRC sh
-    ffmpeg input.mp3 -acodec pcm_s16le -ar 16000 -ac 1 output.wav
+  #+BEGIN_SRC shell
+        ffmpeg input.mp3 -acodec pcm_s16le -ar 16000 -ac 1 output.wav
   #+END_SRC
 - Make a folder sequence of this manner
     hey-computer/
+
     ├── wake-word/
+
     │   ├── hey-computer.00.wav
+
     │   ├── hey-computer.01.wav
+
     │   ├── hey-computer.02.wav
+
     │   ├── hey-computer.03.wav
+
     │   ├── hey-computer.04.wav
+
     │   ├── hey-computer.05.wav
+
     │   ├── hey-computer.06.wav
+
     │   ├── hey-computer.07.wav
+
     │   └── hey-computer.08.wav
+
     ├── not-wake-word/
+
     └── test/
+
         ├── wake-word/
+
         │   ├── hey-computer.09.wav
+
         │   ├── hey-computer.10.wav
+
         │   ├── hey-computer.11.wav
+
         │   └── hey-computer.12.wav
+
         └── not-wake-word/
 - Once the data is ready Train it for 60 epochs
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC shell
     precise-train -e 60 hey-computer.net hey-computer/
   #+END_SRC
 - You can test your code using precise-test
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC shell
     precise-test hey-computer.net hey-computer/
   #+END_SRC
 - The accuracy will be low and the false activation's will be high. To account for this we have to augment data with background
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC shell
     mkdir -p data/random
     wget http://downloads.tuxfamily.org/pdsounds/pdsounds_march2009.7z
     7z x pdsounds_march2009.7z # Install p7zip if not yet installed
@@ -78,24 +104,24 @@ This repository is an end to end speech recognition toolkit which uses open sour
     for i in $SOURCE_DIR/*.mp3; do echo "Converting $i..."; fn=${i##*/}; ffmpeg -i "$i" -acodec pcm_s16le -ar 16000 -ac 1 -f wav "$DEST_DIR/${fn%.*}.wav"; done
   #+END_SRC
 - Fine-tune your model with the augmented data
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC shell
     precise-train-incremental hey-computer.net hey-computer/
   #+END_SRC
 - You can test the accuracy of your system using:
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC shell
     precise-test hey-computer.net hey-computer/
   #+END_SRC
 - Convert your model to Tensorflow model
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC shell
     precise-convert hey-computer.net
   #+END_SRC
 - To test your code in python use the sample_precise.py file, Change the model path to the required destination and run the code
-  #+BEGIN_SRC sh
+  #+BEGIN_SRC shell
     conda activate speech
     python sample_precise.py
   #+END_SRC
 ** Run the main code to test the pipeline
-#+BEGIN_SRC sh
+#+BEGIN_SRC shell
     conda activate speech
     python main.py
 #+END_SRC
