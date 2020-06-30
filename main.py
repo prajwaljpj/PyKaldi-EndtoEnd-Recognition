@@ -56,17 +56,18 @@ class SpeechRecon(object):
         self.record = record
 
         # Kaldi paths (currently hardcoded, have to be reinitialized)
-        model_path = "/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/final.mdl"
-        graph_path = "/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst"
-        symbol_path = "/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/data/lang_chain/words.txt"
-        online_conf = "/home/rbccps2080ti/projects/speech/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf"
+        model_path = (
+            "/home/prajwaljpj/projects/kaldi/egs/aspire/s5/exp/chain/tdnn_7b/final.mdl"
+        )
+        graph_path = "/home/prajwaljpj/projects/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst"
+        symbol_path = "/home/prajwaljpj/projects/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/words.txt"
+        online_conf = "/home/prajwaljpj/projects/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf"
 
         # Precise Wake word detection paths (add location of the precise engine and location of your model)
         precise_engine = PreciseEngine(
-            "/home/rbccps2080ti/.virtualenvs/precise/bin/precise-engine",
-            "/home/rbccps2080ti/projects/speech/wake-word-benchmark/audio/computer/hey-computer.net",
+            "/home/prajwaljpj/projects/sophia/precise/precise-engine/precise-engine",
+            "/home/prajwaljpj/projects/sophia/PyKaldi-EndtoEnd-Recognition/models/hey-computer.net",
         )
-        # self.precise_engine = PreciseEngine('/home/rbccps2080ti/.virtualenvs/precise/bin/precise-engine', '/home/rbccps2080ti/projects/speech/wake-word-benchmark/audio/Asha-new/hey-asha.net')
 
         self.sample_rate = 8000
         self.chunk_size = 2048
@@ -97,10 +98,11 @@ class SpeechRecon(object):
         self.current_activity_states = [False] * VAD_buffer
         self.current_target_state = False  # statement and not command to sophia
 
-        # Deepspeech recogniser Init Options
-        self.ds_model = deepspeech.Model(
-            "/home/rbccps2080ti/projects/speech/deepspeech/deepspeech-0.7.0-models.pbmm"
-        )
+        # Deepspeech recogniser Init Options if you want to use deepspeech
+        # TODO Fix bugs
+        # self.ds_model = deepspeech.Model(
+        #     "/home/rbccps2080ti/projects/speech/deepspeech/deepspeech-0.7.0-models.pbmm"
+        # )
         # self.ds_model.setBeamWidth(500)
         # self.ds_model.enableDecoderWithLM("/home/rbccps2080ti/projects/speech/deepspeech/deepspeech-0.6.1-models/lm.binary",
         # "/home/rbccps2080ti/projects/speech/deepspeech/deepspeech-0.6.1-models/trie",
@@ -180,7 +182,7 @@ class SpeechRecon(object):
         print("Precise Activation Occured")
         self.update_target(True)
 
-    def init_decoder(self, kaldidecoder=False):
+    def init_decoder(self, kaldidecoder=True):
         """ Initialize some parementers of the decoder.
         For Kaldi, creating an input stream pipeline and initializing the decoder object,
         For deepspeech, creating a Stream object through which the chunks are decoded"""
@@ -192,7 +194,7 @@ class SpeechRecon(object):
             self.context = self.ds_model.createStream()
             # print("deepspeech not yet implemented")
 
-    def decode_chunk(self, chunk, kaldidecoder=False, last_chunk=False):
+    def decode_chunk(self, chunk, kaldidecoder=True, last_chunk=False):
         """ Method to decode audio chunks one by one.
         For kaldi, it is necessary to know of the chunk is last one or not.
         This is provided by the VAD and the current_activity_states class variable.
@@ -214,7 +216,7 @@ class SpeechRecon(object):
             out = self.ds_model.intermediateDecode(self.context)
             return out
 
-    def destroy_decoder(self, kaldidecoder=False):
+    def destroy_decoder(self, kaldidecoder=True):
         """ Method to complete decoding as for that utterance."""
         if kaldidecoder:
             # self.feature_pipeline.input_finished()
