@@ -1,30 +1,36 @@
 #+TITLE: End to End Speech Recognition with Pykaldi/Deepspeech, webrtcvad, precise
+#+AUTHOR: Prajwal Rao
+#+EMAIL: prajwaljpj@gmail.com
+#+OPTIONS: H:2 date:nil tex:t
+#+PANDOC_OPTIONS: pdf-engine:pdflatex pdf-engine-opt:-shell-escape number-sections:t highlight-style:pygments
+#+PANDOC_VARIABLES: classoption:6pt,conference geometry:margin=0.75in linkcolor:blue
+#+LaTeX_HEADER: \usepackage{minted}
 
 * Introduction
 This repository is an end to end speech recognition toolkit which uses open source libraries such as [[https://github.com/pykaldi/pykaldi][PyKaldi]], [[https://github.com/mozilla/DeepSpeech][Deepspeech]] , [[https://github.com/wiseman/py-webrtcvad][WebrtcVAD]], [[https://github.com/MycroftAI/mycroft-precise][mycroft precise]]
 * Installation
 - Install [[https://docs.anaconda.com/anaconda/install/][Anaconda]]
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
         conda create --name speech python=3.6
         conda activate speech
   #+END_SRC
 - Install PyKaldi
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
         conda install -c pykaldi pykaldi
   #+END_SRC
 - Install Deepspeech
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
         pip3 install deepspeech # Install deepspeech-gpu if you want CUDA support
         # Download the model
         curl -LO https://github.com/mozilla/DeepSpeech/releases/download/v0.7.4/audio-0.7.4.tar.gz
         tar xvf audio-0.7.4.tar.gz
   #+END_SRC
 - Install WebrtcVAD
-    #+BEGIN_SRC shell
+    #+BEGIN_SRC bash
         pip install webrtcvad
     #+END_SRC
 - Install mycroft-precise
-    #+BEGIN_SRC shell
+    #+BEGIN_SRC bash
         ARCH=x86_64
         wget https://github.com/MycroftAI/precise-data/raw/dist/$ARCH/precise-engine.tar.gz
         tar xvf precise-engine.tar.gz
@@ -40,88 +46,78 @@ This repository is an end to end speech recognition toolkit which uses open sour
 ** Train the WakeWord Detector using the following [[https://github.com/MycroftAI/mycroft-precise/wiki/Training-your-own-wake-word][steps]]:
 - Activate your anaconda environment
 - Record your audio samples using
-    #+BEGIN_SRC shell
+    #+BEGIN_SRC bash
         precise-collect
     #+END_SRC
 - If you are recording by other means, convert the samples to 16kHz 1 channel 16-bit PCM wav audio files
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
         ffmpeg input.mp3 -acodec pcm_s16le -ar 16000 -ac 1 output.wav
   #+END_SRC
 - Make a folder sequence of this manner
+  #+NAME: Folder structure
+  #+BEGIN_SRC ditaa :file folder_structure.png
     hey-computer/
-
-    ├── wake-word/
-
-    │   ├── hey-computer.00.wav
-
-    │   ├── hey-computer.01.wav
-
-    │   ├── hey-computer.02.wav
-
-    │   ├── hey-computer.03.wav
-
-    │   ├── hey-computer.04.wav
-
-    │   ├── hey-computer.05.wav
-
-    │   ├── hey-computer.06.wav
-
-    │   ├── hey-computer.07.wav
-
-    │   └── hey-computer.08.wav
-
-    ├── not-wake-word/
-
-    └── test/
-
-        ├── wake-word/
-
-        │   ├── hey-computer.09.wav
-
-        │   ├── hey-computer.10.wav
-
-        │   ├── hey-computer.11.wav
-
-        │   └── hey-computer.12.wav
-
-        └── not-wake-word/
+    |
+    +-- wake-word/
+    |   +-- hey-computer.00.wav
+    |   +-- hey-computer.01.wav
+    |   +-- hey-computer.02.wav
+    |   +-- hey-computer.03.wav
+    |   +-- hey-computer.04.wav
+    |   +-- hey-computer.05.wav
+    |   +-- hey-computer.06.wav
+    |   +-- hey-computer.07.wav
+    |   +-- hey-computer.08.wav
+    +-- not-wake-word/
+    +-- test/
+        |
+        +-- wake-word/
+        |   +-- hey-computer.09.wav
+        |   +-- hey-computer.10.wav
+        |   +-- hey-computer.11.wav
+        |   +-- hey-computer.12.wav
+        +-- not-wake-word/
+  #+END_SRC
 - Once the data is ready Train it for 60 epochs
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
     precise-train -e 60 hey-computer.net hey-computer/
   #+END_SRC
 - You can test your code using precise-test
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
     precise-test hey-computer.net hey-computer/
   #+END_SRC
 - The accuracy will be low and the false activation's will be high. To account for this we have to augment data with background
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
     mkdir -p data/random
     wget http://downloads.tuxfamily.org/pdsounds/pdsounds_march2009.7z
     7z x pdsounds_march2009.7z # Install p7zip if not yet installed
     cd ../../
     SOURCE_DIR=data/random/mp3
     DEST_DIR=data/random
-    for i in $SOURCE_DIR/*.mp3; do echo "Converting $i..."; fn=${i##*/}; ffmpeg -i "$i" -acodec pcm_s16le -ar 16000 -ac 1 -f wav "$DEST_DIR/${fn%.*}.wav"; done
+    for i in $SOURCE_DIR/*.mp3;
+    do echo "Converting $i..."; fn=${i##*/};
+       ffmpeg -i "$i" -acodec pcm_s16le -ar 16000 -ac 1 -f wav "$DEST_DIR/${fn%.*}.wav";
+    done
   #+END_SRC
 - Fine-tune your model with the augmented data
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
     precise-train-incremental hey-computer.net hey-computer/
   #+END_SRC
 - You can test the accuracy of your system using:
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
     precise-test hey-computer.net hey-computer/
   #+END_SRC
 - Convert your model to Tensorflow model
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
     precise-convert hey-computer.net
   #+END_SRC
 - To test your code in python use the sample_precise.py file, Change the model path to the required destination and run the code
-  #+BEGIN_SRC shell
+  #+BEGIN_SRC bash
     conda activate speech
     python sample_precise.py
   #+END_SRC
 ** Run the main code to test the pipeline
-#+BEGIN_SRC shell
+#+BEGIN_SRC bash
     conda activate speech
     python main.py
 #+END_SRC
@@ -129,9 +125,9 @@ This repository is an end to end speech recognition toolkit which uses open sour
 - The simple way is to call the SpeechRecon as an Object and then use the run method
 - The object consists of record variable which can be set to either True or False as per requirement
     #+BEGIN_SRC python
-        from main import SpeechRecon
-        speech_pipeline = SpeechRecon(record=False)
-        speech_pipeline.run()
+from main import SpeechRecon
+speech_pipeline = SpeechRecon(record=False)
+speech_pipeline.run()
     #+END_SRC
 * Results
 * Authors
